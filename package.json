@@ -1,0 +1,17 @@
+{
+  "dependencies": {
+    "crypto-js": "^4.2.0"
+  },
+  "name": "blocky",
+  "version": "1.0.0",
+  "main": "src/main.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node src/main.js"
+  },
+  "keywords": [],
+  "author": "Ectario",
+  "license": "GNU GPLv3",
+  "description": "My blockchain from scratch"
+}
