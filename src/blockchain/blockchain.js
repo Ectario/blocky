@@ -1,22 +1,109 @@
 import { Proof } from '../blockchain/proof.js';
+import sha256 from 'crypto-js';
+import { Transaction } from './transactions.js';
+const { SHA256 } = sha256;
 
 export class BlockChain {
     constructor() {
         this.blocks = [];
     }
 
-    addBlock(data) {
-        if (data instanceof Block) { this.blocks.push(data); }
-        else { // just a data
-            var lastHash = this.blocks[this.blocks.length - 1].hash;
-            var newBlock = new Block(data, lastHash);
-            this.addBlock(newBlock);
+    addBlock(transactions_or_block) {
+        if(transactions_or_block instanceof Block){
+            this.blocks.push(transactions_or_block);
+            return;
         }
+        let lastHash;
+        if(this.blocks.length > 0){
+            lastHash = this.blocks[this.blocks.length - 1].hash;
+        } else {
+            lastHash = SHA256("big-bang");
+        }
+        let newBlock = new Block(transactions_or_block, lastHash);
+        this.blocks.push(newBlock);
     }
+
+    findUnspentTransactions(address){
+        let unspentTxs = [];
+        let spentTXOs = {};
+        const blocks = [...this.blocks];
+        for (const block of blocks.reverse()) {
+            for (let tx of block.transactions) {
+                let txID = tx.ID;
+                
+                for (let [outIdx, out] of tx.outputs.entries()) {
+                    var isCurrendIdx = false;
+                    if (spentTXOs[txID]) {
+                        for (let spentOut of spentTXOs[txID]) {
+                            if (spentOut === outIdx) {
+                                isCurrendIdx = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!isCurrendIdx && out.canBeUnlocked(address)) {
+                        unspentTxs.push(tx);
+                    } else {
+                        continue;
+                    }
+                }
+                if (!tx.isCoinBase()) {
+                    for (let input of tx.inputs) {
+                        if (input.canUnlock(address)) {
+                            let inTxID = input.ID;
+                            if (!spentTXOs[inTxID]) {
+                                spentTXOs[inTxID] = [];
+                            }
+                            spentTXOs[inTxID].push(input.out);
+                        }
+                    }
+                }
+            }
+        }
+        return unspentTxs;
+    }
+
+    findUTXO(address){
+        let UTXOs = [];
+        let unspentTransactions = this.findUnspentTransactions(address);
+        for (let tx of unspentTransactions){
+            for (let out of tx.outputs){
+                if (out.canBeUnlocked(address)){
+                    UTXOs.push(out);
+                }
+            }
+        }
+        return UTXOs;
+    }
+
+    findSpendableOutputs(address, amount) {
+        let unspentOuts = {};
+        let unspentTxs = this.findUnspentTransactions(address);
+        let accumulated = 0;
     
-    static InitBlockChain() {
-        var genesisBlock = Block.Genesis();
-        var newBlockChain = new BlockChain();
+        for (let tx of unspentTxs) {
+            let txID = tx.ID;
+            for (let [outIdx, out] of tx.outputs.entries()) {
+                if (out.canBeUnlocked(address) && accumulated < amount) {
+                    accumulated += out.value;
+                    if (!unspentOuts[txID]) {
+                        unspentOuts[txID] = [];
+                    }
+                    unspentOuts[txID].push(outIdx);
+                    if (accumulated >= amount) {
+                        return { accumulated, unspentOuts };
+                    }
+                }
+          }
+        }
+        return { accumulated, unspentOuts };
+      }
+
+
+    static InitBlockChain(address) {
+        let tx = Transaction.CoinbaseTx("Genesis data", address);
+        let genesisBlock = Block.Genesis(tx);
+        let newBlockChain = new BlockChain();
         newBlockChain.addBlock(genesisBlock);
         return newBlockChain;
     }
@@ -24,21 +111,29 @@ export class BlockChain {
 
 class Block {
     hash;
-    data;
+    transactions;
     prevHash;
     nonce;
 
-    constructor(data, prevHash) {
-        this.data = data;
+    constructor(transactions, prevHash) {    
+        this.transactions = transactions;
         this.prevHash = prevHash;
         this.nonce = 0;
         let pow = new Proof(this);
-        let nonce, hash = pow.run();
+        let { nonce, hash } = pow.run();
         this.nonce = nonce;
         this.hash = hash;
     }
 
-    static Genesis() {
-        return new Block("Genesis", "");
+    hashTransactions(){
+        var hashes = "";
+        for (const tx of this.transactions) {
+            hashes += `${SHA256(tx.ID)}`;
+        }
+        return SHA256(hashes);
+    }
+
+    static Genesis(coinbaseTx) {
+        return new Block([coinbaseTx], "");
     }
 }

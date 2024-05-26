@@ -14,7 +14,7 @@ export class Proof {
     }
 
     initData(nonce){
-        return this.block.prevHash + this.block.data + toHex(nonce) + toHex(Proof.DIFFICULTY);
+        return this.block.prevHash + this.block.hashTransactions() + toHex(nonce) + toHex(Proof.DIFFICULTY);
     }
 
     run(){
@@ -22,7 +22,7 @@ export class Proof {
             let data = this.initData(nonce);
             let hash = SHA256(data);
             if (Number("0x" + hash) < this.target){
-                return nonce, hash;
+                return { nonce, hash };
             }
         }
         throw new Error('[ERROR] In Proof.js, Run() can\'t a valid nonce for block.data=' + this.block.data);

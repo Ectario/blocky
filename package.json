@@ -1,12 +1,12 @@
 {
   "dependencies": {
+    "@msgpack/msgpack": "^3.0.0-beta2",
     "crypto-js": "^4.2.0"
   },
   "name": "blocky",
   "version": "1.0.0",
   "type": "module",
   "main": "src/main.js",
-  "devDependencies": {},
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "node src/main.js"
