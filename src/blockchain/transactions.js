@@ -1,7 +1,5 @@
 import msgpack from '@msgpack/msgpack';
-import sha256 from 'crypto-js';
-const { SHA256 } = sha256;
-import CryptoJS from 'crypto-js';
+import { sha256 } from "../utils/hashing.js"
 
 class TxOutput {
     constructor(value, pubKey){
@@ -34,8 +32,7 @@ export class Transaction {
 
     setID(){
         const encoded = msgpack.encode(this);
-        const wordArray = CryptoJS.lib.WordArray.create(encoded);
-        const hash = SHA256(wordArray)
+        const hash = sha256(encoded.toString())
         this.ID = `${hash}`;
     }
 

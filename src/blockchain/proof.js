@@ -1,5 +1,4 @@
-import sha256 from 'crypto-js';
-const { SHA256 } = sha256;
+import { sha256 } from "../utils/hashing.js"
 
 const toHex = dec => dec.toString(16);
 
@@ -20,7 +19,7 @@ export class Proof {
     run(){
         for (let nonce = 0; nonce < Number.MAX_SAFE_INTEGER; nonce++) {
             let data = this.initData(nonce);
-            let hash = SHA256(data);
+            let hash = sha256(data);
             if (Number("0x" + hash) < this.target){
                 return { nonce, hash };
             }
@@ -30,7 +29,7 @@ export class Proof {
 
     validate(){
         let data = this.initData(this.block.nonce);
-        let hash = SHA256(data);
+        let hash = sha256(data);
         return Number("0x" + hash) < this.target;
     }
 }

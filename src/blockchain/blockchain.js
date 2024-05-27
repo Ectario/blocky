@@ -1,7 +1,6 @@
 import { Proof } from '../blockchain/proof.js';
-import sha256 from 'crypto-js';
+import { sha256 } from "../utils/hashing.js"
 import { Transaction } from './transactions.js';
-const { SHA256 } = sha256;
 
 export class BlockChain {
     constructor() {
@@ -17,7 +16,7 @@ export class BlockChain {
         if(this.blocks.length > 0){
             lastHash = this.blocks[this.blocks.length - 1].hash;
         } else {
-            lastHash = SHA256("big-bang");
+            lastHash = sha256("big-bang");
         }
         let newBlock = new Block(transactions_or_block, lastHash);
         this.blocks.push(newBlock);
@@ -128,9 +127,9 @@ class Block {
     hashTransactions(){
         var hashes = "";
         for (const tx of this.transactions) {
-            hashes += `${SHA256(tx.ID)}`;
+            hashes += `${sha256(tx.ID)}`;
         }
-        return SHA256(hashes);
+        return sha256(hashes);
     }
 
     static Genesis(coinbaseTx) {
