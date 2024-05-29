@@ -8,28 +8,28 @@ export class BlockChain {
     }
 
     addBlock(transactions_or_block) {
-        if(transactions_or_block instanceof Block){
+        if (transactions_or_block instanceof Block) {
             this.blocks.push(transactions_or_block);
             return;
         }
         let lastHash;
-        if(this.blocks.length > 0){
+        if (this.blocks.length > 0) {
             lastHash = this.blocks[this.blocks.length - 1].hash;
         } else {
             lastHash = sha256("big-bang");
         }
         let newBlock = new Block(transactions_or_block, lastHash);
-        this.blocks.push(newBlock);
+        this.addBlock(newBlock);
     }
 
-    findUnspentTransactions(address){
+    findUnspentTransactions(address) {
         let unspentTxs = [];
         let spentTXOs = {};
         const blocks = [...this.blocks];
         for (const block of blocks.reverse()) {
             for (let tx of block.transactions) {
                 let txID = tx.ID;
-                
+
                 for (let [outIdx, out] of tx.outputs.entries()) {
                     var isCurrendIdx = false;
                     if (spentTXOs[txID]) {
@@ -62,12 +62,12 @@ export class BlockChain {
         return unspentTxs;
     }
 
-    findUTXO(address){
+    findUTXO(address) {
         let UTXOs = [];
         let unspentTransactions = this.findUnspentTransactions(address);
-        for (let tx of unspentTransactions){
-            for (let out of tx.outputs){
-                if (out.canBeUnlocked(address)){
+        for (let tx of unspentTransactions) {
+            for (let out of tx.outputs) {
+                if (out.canBeUnlocked(address)) {
                     UTXOs.push(out);
                 }
             }
@@ -79,7 +79,7 @@ export class BlockChain {
         let unspentOuts = {};
         let unspentTxs = this.findUnspentTransactions(address);
         let accumulated = 0;
-    
+
         for (let tx of unspentTxs) {
             let txID = tx.ID;
             for (let [outIdx, out] of tx.outputs.entries()) {
@@ -93,10 +93,10 @@ export class BlockChain {
                         return { accumulated, unspentOuts };
                     }
                 }
-          }
+            }
         }
         return { accumulated, unspentOuts };
-      }
+    }
 
 
     static InitBlockChain(address) {
@@ -114,7 +114,7 @@ class Block {
     prevHash;
     nonce;
 
-    constructor(transactions, prevHash) {    
+    constructor(transactions, prevHash) {
         this.transactions = transactions;
         this.prevHash = prevHash;
         this.nonce = 0;
@@ -124,7 +124,7 @@ class Block {
         this.hash = hash;
     }
 
-    hashTransactions(){
+    hashTransactions() {
         var hashes = "";
         for (const tx of this.transactions) {
             hashes += `${sha256(tx.ID)}`;
