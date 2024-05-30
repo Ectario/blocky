@@ -9,10 +9,11 @@ export class Wallet {
     constructor() {
         [this.pk, this.sk] = genKeyPair();
         this.address = this.#genAddress();
+        this.pubKeyHash = Wallet.getPublicKeyHash(this.pk);
     }
 
     #genAddress() {
-        let pubKH = Wallet.getPublicKeyHash(this.pk.value);
+        let pubKH = Wallet.getPublicKeyHash(this.pk);
         let versionnedHash = VERSION.toString() + pubKH;
         let checksum = Wallet.checksum(versionnedHash);
         let alltogether = versionnedHash + checksum;
@@ -42,5 +43,3 @@ export class Wallet {
         return computedChecksum == checksum;
     }
 }
-
-let w = new Wallet();

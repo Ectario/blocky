@@ -7,11 +7,8 @@ class TxOutput {
         this.value = value;
         this.pubKeyHash = pubKeyHash
     }
-    canBeUnlocked(address) {
-        return this.pubKeyHash == Wallet.addressToPublicKeyHash(address);
-    }
-    isLockedBy(pubKeyHash) {
-        return this.pubKeyHash = pubKeyHash;
+    canBeUnlocked(pubKeyHash) {
+        return this.pubKeyHash == pubKeyHash;
     }
 }
 
@@ -46,16 +43,19 @@ export class Transaction {
     }
 
     static CoinbaseTx(data, to) {
-        let txin = new TxInput("", -1, data);
-        let txout = new TxOutput(100, to);
+        let txin = new TxInput("", -1, null, data);
+        let txout = new TxOutput(150, to);
         let tx = new Transaction(null, [txin], [txout]);
         tx.setID();
         return tx;
     }
 
-    static NewTx(amount, chain, from, to) {
+    static NewTx(amount, chain, wallet, to_address) {
         let inputs = [];
         let outputs = [];
+
+        let from = wallet.pubKeyHash;
+        let to_pubKeyHash = Wallet.addressToPublicKeyHash(to_address);
 
         let { accumulated, unspentOuts } = chain.findSpendableOutputs(from, amount);
 
@@ -65,12 +65,12 @@ export class Transaction {
 
         for (const [txid, outs] of Object.entries(unspentOuts)) {
             for (const out of outs) {
-                const input = new TxInput(txid, out, from);
+                const input = new TxInput(txid, out, null, wallet.pk);
                 inputs.push(input);
             }
         }
 
-        outputs.push(new TxOutput(amount, to));
+        outputs.push(new TxOutput(amount, to_pubKeyHash));
 
         if (accumulated > amount) {
             outputs.push(new TxOutput(accumulated - amount, from));
@@ -78,6 +78,9 @@ export class Transaction {
 
         const tx = new Transaction(null, inputs, outputs);
         tx.setID();
+
+        chain.signTx(tx, wallet.sk);
+
         return tx;
     }
 
@@ -88,7 +91,7 @@ export class Transaction {
 
         for (let input of this.inputs) {
             if (prevTXs[input.ID].ID == null) {
-                console.log("Error: Previous transaction " + `${input.ID}` + " is not correct");
+                throw new Error("Error: Previous transaction " + `${input.ID}` + " is not correct");
             }
         }
 
@@ -98,7 +101,6 @@ export class Transaction {
             txCopy.inputs[inputIdx].signature = null;
             txCopy.inputs[inputIdx].pubKey = prevTx.outputs[input.out].pubKeyHash;
             txCopy.setID();
-            txCopy.inputs[inputIdx].pubKey = null;
             let signature = privKey.sign(txCopy.ID);
             this.inputs[inputIdx].signature = signature;
         }
@@ -111,7 +113,7 @@ export class Transaction {
 
         for (let input of this.inputs) {
             if (prevTXs[input.ID].ID == null) {
-                console.log("Error: Previous transaction " + `${input.ID}` + " is not correct");
+                throw new Error("Error: Previous transaction " + `${input.ID}` + " is not correct");
             }
         }
 

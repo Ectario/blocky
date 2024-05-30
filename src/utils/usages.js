@@ -9,14 +9,14 @@ export class WalletBank {
         this.wallets[name] = new Wallet();
     }
     printWallets(everything = false) {
-        if (!everything) {
+        if (everything) {
             for (let wallet of Object.entries(this.wallets)) {
                 console.log(wallet);
             }
         }
         else {
             for (let wallet of Object.entries(this.wallets)) {
-                console.log("   " + wallet[0] + " : " + wallet[1].address);
+                console.log("   " + wallet[0] + " : address = " + wallet[1].address + " | pubKeyHash = " + wallet[1].pubKeyHash);
             }
         }
     }
@@ -34,17 +34,22 @@ export function printBlockChain(chain) {
             console.log(`   Transaction ${tx.ID}:`);
             console.log(`       Inputs:`);
             for (const inp of tx.inputs) {
-                console.log(`          id     - ${inp.ID}`);
-                console.log(`          out    - ${inp.out}`);
-                console.log(`          sig    - ${inp.sig}`);
+                console.log(`          id           - ${inp.ID}`);
+                console.log(`          out          - ${inp.out}`);
+                if (tx.ID !== chain.blocks[0].transactions[0].ID) {
+                    console.log(`          signature    - ${JSON.parse(JSON.stringify(inp.signature))["r"]}${JSON.parse(JSON.stringify(inp.signature))["s"]}`);
+                } else {
+                    console.log(`          signature    - not signed`);
+                }
+                console.log(`          pubKey       - ${inp.pubKey.value}`);
                 if (inp !== tx.inputs[tx.inputs.length - 1]) {
                     console.log(`          ------------------`);
                 }
             }
             console.log(`       Outputs:`);
             for (const out of tx.outputs) {
-                console.log(`          value     - ${out.value}`);
-                console.log(`          pubkey    - ${out.pubKey}`);
+                console.log(`          value         - ${out.value}`);
+                console.log(`          pubKeyHash    - ${out.pubKeyHash}`);
                 if (out !== tx.outputs[tx.outputs.length - 1]) {
                     console.log(`          ------------------`);
                 }
@@ -55,7 +60,8 @@ export function printBlockChain(chain) {
 
 export function getBalance(address, chain) {
     let balance = 0;
-    let UTXOs = chain.findUTXO(address);
+    let pubKeyHash = Wallet.addressToPublicKeyHash(address);
+    let UTXOs = chain.findUTXO(pubKeyHash);
 
     for (let out of UTXOs) {
         balance += out.value;
@@ -63,7 +69,7 @@ export function getBalance(address, chain) {
     return balance;
 }
 
-export function send(from_address, to_address, amount, chain) {
-    let tx = Transaction.NewTx(amount, chain, from_address, to_address);
+export function send(from_wallet, to_address, amount, chain) {
+    let tx = Transaction.NewTx(amount, chain, from_wallet, to_address);
     chain.addBlock([tx]);
 }

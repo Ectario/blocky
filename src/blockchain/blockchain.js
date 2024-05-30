@@ -1,5 +1,6 @@
 import { Proof } from '../blockchain/proof.js';
 import { sha256 } from "../utils/hashing.js"
+import { Wallet } from "../signatures/wallet.js"
 import { Transaction } from './transactions.js';
 
 export class BlockChain {
@@ -22,7 +23,7 @@ export class BlockChain {
         this.addBlock(newBlock);
     }
 
-    findUnspentTransactions(address) {
+    findUnspentTransactions(pubKeyHash) {
         let unspentTxs = [];
         let spentTXOs = {};
         const blocks = [...this.blocks];
@@ -40,7 +41,7 @@ export class BlockChain {
                             }
                         }
                     }
-                    if (!isCurrendIdx && out.canBeUnlocked(address)) {
+                    if (!isCurrendIdx && out.canBeUnlocked(pubKeyHash)) {
                         unspentTxs.push(tx);
                     } else {
                         continue;
@@ -48,7 +49,7 @@ export class BlockChain {
                 }
                 if (!tx.isCoinBase()) {
                     for (let input of tx.inputs) {
-                        if (input.canUnlock(address)) {
+                        if (input.canUnlock(pubKeyHash)) {
                             let inTxID = input.ID;
                             if (!spentTXOs[inTxID]) {
                                 spentTXOs[inTxID] = [];
@@ -62,12 +63,12 @@ export class BlockChain {
         return unspentTxs;
     }
 
-    findUTXO(address) {
+    findUTXO(pubKeyHash) {
         let UTXOs = [];
-        let unspentTransactions = this.findUnspentTransactions(address);
+        let unspentTransactions = this.findUnspentTransactions(pubKeyHash);
         for (let tx of unspentTransactions) {
             for (let out of tx.outputs) {
-                if (out.canBeUnlocked(address)) {
+                if (out.canBeUnlocked(pubKeyHash)) {
                     UTXOs.push(out);
                 }
             }
@@ -75,15 +76,15 @@ export class BlockChain {
         return UTXOs;
     }
 
-    findSpendableOutputs(address, amount) {
+    findSpendableOutputs(pubKeyHash, amount) {
         let unspentOuts = {};
-        let unspentTxs = this.findUnspentTransactions(address);
+        let unspentTxs = this.findUnspentTransactions(pubKeyHash);
         let accumulated = 0;
 
         for (let tx of unspentTxs) {
             let txID = tx.ID;
             for (let [outIdx, out] of tx.outputs.entries()) {
-                if (out.canBeUnlocked(address) && accumulated < amount) {
+                if (out.canBeUnlocked(pubKeyHash) && accumulated < amount) {
                     accumulated += out.value;
                     if (!unspentOuts[txID]) {
                         unspentOuts[txID] = [];
@@ -98,13 +99,46 @@ export class BlockChain {
         return { accumulated, unspentOuts };
     }
 
+    findTransaction(id){
+        for(let [blockIdx, block] of this.blocks.entries()){
+            for(let [txIdx, tx] of block.transactions.entries()){
+                if(tx.ID == id){
+                    return [ tx, blockIdx, txIdx ];
+                }
+            }
+        }
+        return [ null, -1, -1 ];
+    }
+
+    signTx(tx, privKey){
+        let prevTXs = this.#getPreviousTXs(tx);
+        tx.sign(privKey, prevTXs);
+    }
+
+    verifyTx(tx){
+        let prevTXs = this.#getPreviousTXs(tx);
+        return tx.verify(prevTXs);
+    }
 
     static InitBlockChain(address) {
-        let tx = Transaction.CoinbaseTx("Genesis data", address);
+        let creatorPKH = Wallet.addressToPublicKeyHash(address);
+        let tx = Transaction.CoinbaseTx("Genesis data", creatorPKH);
         let genesisBlock = Block.Genesis(tx);
         let newBlockChain = new BlockChain();
         newBlockChain.addBlock(genesisBlock);
         return newBlockChain;
+    }
+
+    #getPreviousTXs(tx){
+        let prevTXs = {};
+        for(let input of tx.inputs){
+            let [ prevTX, blockIdx, txIdx ] = this.findTransaction(input.ID);
+            if(prevTX == null){
+                throw new Error("Error: can't find the transaction " + `${input.ID}`);   
+            }
+            prevTXs[input.ID] = prevTX;
+        }
+        return prevTXs;
     }
 }
 
